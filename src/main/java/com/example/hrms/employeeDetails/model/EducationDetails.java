@@ -1,6 +1,7 @@
 package com.example.hrms.employeeDetails.model;
 
 import com.example.hrms.employeeDetails.enums.ApplicationStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -48,4 +49,10 @@ public class EducationDetails {
     private byte[] uploadedCertifications;
     @Enumerated(EnumType.STRING)
     private ApplicationStatus applicationStatus;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "basic_details_id", nullable = false)
+    @JsonIgnore
+    private BasicDetails basicDetails;
+
 }

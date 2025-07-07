@@ -1,181 +1,180 @@
 package com.example.hrms.employeeDetails.service;
 
 import com.example.hrms.employeeDetails.dtos.EmployeeDetailDto;
+import com.example.hrms.employeeDetails.dtos.EmployeeFilesDto;
 import com.example.hrms.employeeDetails.dtos.ManagerDetailsDto;
+import com.example.hrms.employeeDetails.dtos.ManagerFilesDto;
+import com.example.hrms.employeeDetails.enums.OnboardingStatus;
 import com.example.hrms.employeeDetails.model.*;
-import com.example.hrms.employeeDetails.repository.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.example.hrms.employeeDetails.repository.BasicDetailsRepository;
+import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 
 @Service
+@RequiredArgsConstructor // Use modern constructor injection
 public class EmployeeOnboardingService {
 
-    @Autowired private BasicDetailsRepository basicRepo;
-    @Autowired private AddressDetailsRepository addressRepo;
-    @Autowired private EducationDetailsRepository educationRepo;
-    @Autowired private WorkExperienceRepository workRepo;
-    @Autowired private IdentificationDetailsRepository idRepo;
-    @Autowired private FamilyInfoDetailsRepository familyRepo;
-    @Autowired private BankDetailsRepository bankRepo;
-    @Autowired private ProfileInfoDetailsRepository profileRepo;
-    @Autowired private DynamicFieldValueRepository dynamicRepo;
-    @Autowired private SalaryStructureDetailsRepository salaryRepo;
-    @Autowired private OnboardingInfoDetailsRepository onboardingRepo;
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    // With cascading, we ONLY need the repository for the ROOT entity.
+    private final BasicDetailsRepository basicRepo;
 
     @Transactional
-    public void saveEmployeeDetails(EmployeeDetailDto dto,
-                                    MultipartFile degreeCertificate,
-                                    MultipartFile marksheets,
-                                    MultipartFile uploadedCertifications,
-                                    MultipartFile relievingLetter,
-                                    MultipartFile experienceLetter,
-                                    MultipartFile payslips,
-                                    MultipartFile aadhaarFile,
-                                    MultipartFile panFile,
-                                    MultipartFile passportFile,
-                                    MultipartFile dependentsInfoFile,
-                                    MultipartFile cancelledChequeFile,
-                                    String emailOverride) throws IOException {
+    public void saveEmployeeDetails(EmployeeDetailDto dto, String userEmail, EmployeeFilesDto files) throws IOException {
+        // 1. Find the EXISTING parent record created by the manager.
+        BasicDetails employee = basicRepo.findByUser_Email(userEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Onboarding not initiated for user: " + userEmail));
 
-
-
+        // 2. Update the primitive fields on the main employee object
         BasicDetails dtoBasic = dto.getBasicDetails();
-        BasicDetails basic = new BasicDetails();
-        basic.setFullName(dtoBasic.getFullName());
-        basic.setEmail(emailOverride);
-        basic.setMobileNumber(dtoBasic.getMobileNumber());
-        basic.setAlternateNumber(dtoBasic.getAlternateNumber());
-        basic.setDOB(dtoBasic.getDOB());
-        basic.setGender(dtoBasic.getGender());
-        basic.setMaritalStatus(dtoBasic.getMaritalStatus());
-        basic.setNationality(dtoBasic.getNationality());
-        basic.setBloodGroup(dtoBasic.getBloodGroup());
-        basicRepo.save(basic);
+        employee.setMobileNumber(dtoBasic.getMobileNumber());
+        employee.setPersonalEmail(dtoBasic.getPersonalEmail());
+        employee.setAlternateNumber(dtoBasic.getAlternateNumber());
+        employee.setDob(dtoBasic.getDob());
+        employee.setGender(dtoBasic.getGender());
+        employee.setMaritalStatus(dtoBasic.getMaritalStatus());
+        employee.setNationality(dtoBasic.getNationality());
+        employee.setBloodGroup(dtoBasic.getBloodGroup());
 
-        AddressDetails dtoAddress = dto.getAddressDetails();
-        AddressDetails address = new AddressDetails();
-        address.setCurrentAddress(dtoAddress.getCurrentAddress());
-        address.setPermanentAddress(dtoAddress.getPermanentAddress());
-        addressRepo.save(address);
+        // 3. Create NEW child objects, link them to the parent, and set them on the parent.
+        // This is what tells JPA to run INSERT statements for the children.
 
-        for (EducationDetails edu : dto.getEducationDetails()) {
-            EducationDetails education = new EducationDetails();
-            education.setHighestQualification(edu.getHighestQualification());
-            education.setUniversityName(edu.getUniversityName());
-            education.setYearOfPassing(edu.getYearOfPassing());
-            education.setOtherDegrees(edu.getOtherDegrees());
-            education.setCertifications(edu.getCertifications());
-            education.setDegreeCertificate(degreeCertificate.getBytes());
-            education.setMarksheets(marksheets.getBytes());
-            education.setUploadedCertifications(uploadedCertifications != null ? uploadedCertifications.getBytes() : null);
-            education.setApplicationStatus(edu.getApplicationStatus());
-            educationRepo.save(education);
+        // --- One-to-One Relationships ---
+
+        // Address Details
+        if (dto.getAddressDetails() != null) {
+            AddressDetails address = dto.getAddressDetails();
+            address.setBasicDetails(employee); // Link child to parent
+            employee.setAddressDetails(address); // Link parent to child
         }
 
-        for (WorkExperience workExp : dto.getWorkExperiences()) {
-            WorkExperience work = new WorkExperience();
-            work.setCompanyName(workExp.getCompanyName());
-            work.setDesignation(workExp.getDesignation());
-            work.setStartDate(workExp.getStartDate());
-            work.setEndDate(workExp.getEndDate());
-            work.setReasonForLeaving(workExp.getReasonForLeaving());
-            work.setRelievingLetter(relievingLetter.getBytes());
-            work.setExperienceLetter(experienceLetter.getBytes());
-            work.setPayslips(payslips.getBytes());
-            work.setApplicationStatus(workExp.getApplicationStatus());
-            workRepo.save(work);
+        // Bank Details
+        if (dto.getBankDetails() != null) {
+            BankDetails bank = dto.getBankDetails();
+            bank.setCancelledCheque(files.cancelledChequeFile().getBytes());
+            bank.setBasicDetails(employee);
+            employee.setBankDetails(bank);
         }
 
-        IdentificationDetails dtoId = dto.getIdentificationDetails();
-        IdentificationDetails id = new IdentificationDetails();
-        id.setAadhaarNumber(dtoId.getAadhaarNumber());
-        id.setPanNumber(dtoId.getPanNumber());
-        id.setPassportNumber(dtoId.getPassportNumber());
-        id.setVoterId(dtoId.getVoterId());
-        id.setDrivingLicense(dtoId.getDrivingLicense());
-        id.setAadhaarFile(aadhaarFile.getBytes());
-        id.setPanFile(panFile.getBytes());
-        id.setPassportFile(passportFile != null ? passportFile.getBytes() : null);
-        id.setApplicationStatus(dtoId.getApplicationStatus());
-        idRepo.save(id);
+        // Identification Details
+        if (dto.getIdentificationDetails() != null) {
+            IdentificationDetails id = dto.getIdentificationDetails();
+            id.setAadhaarFile(files.aadhaarFile().getBytes());
+            id.setPanFile(files.panFile().getBytes());
+            if (files.passportFile() != null) {
+                id.setPassportFile(files.passportFile().getBytes());
+            }
+            id.setBasicDetails(employee);
+            employee.setIdentificationDetails(id);
+        }
 
-        FamilyInfoDetails dtoFamily = dto.getFamilyInfo();
-        FamilyInfoDetails family = new FamilyInfoDetails();
-        family.setParentName(dtoFamily.getParentName());
-        family.setSpouseName(dtoFamily.getSpouseName());
-        family.setEmergencyContactName(dtoFamily.getEmergencyContactName());
-        family.setEmergencyContactRelation(dtoFamily.getEmergencyContactRelation());
-        family.setEmergencyContactNumber(dtoFamily.getEmergencyContactNumber());
-        family.setDependentsInfoFile(dependentsInfoFile != null ? dependentsInfoFile.getBytes() : null);
-        family.setApplicationStatus(dtoFamily.getApplicationStatus());
-        familyRepo.save(family);
+        // Family Info Details
+        if (dto.getFamilyInfo() != null) {
+            FamilyInfoDetails family = dto.getFamilyInfo();
+            if (files.dependentsInfoFile() != null) {
+                family.setDependentsInfoFile(files.dependentsInfoFile().getBytes());
+            }
+            family.setBasicDetails(employee);
+            employee.setFamilyInfoDetails(family);
+        }
 
-        BankDetails dtoBank = dto.getBankDetails();
-        BankDetails bank = new BankDetails();
-        bank.setBankName(dtoBank.getBankName());
-        bank.setAccountNumber(dtoBank.getAccountNumber());
-        bank.setIfscCode(dtoBank.getIfscCode());
-        bank.setBranchName(dtoBank.getBranchName());
-        bank.setUan(dtoBank.getUan());
-        bank.setPfNumber(dtoBank.getPfNumber());
-        bank.setEsiNumber(dtoBank.getEsiNumber());
-        bank.setCancelledCheque(cancelledChequeFile.getBytes());
-        bank.setApplicationStatus(dtoBank.getApplicationStatus());
-        bankRepo.save(bank);
-
+        // Profile Info Details
         if (dto.getProfileInfo() != null) {
-            profileRepo.save(dto.getProfileInfo());
+            ProfileInfoDetails profile = dto.getProfileInfo();
+            // Assuming profilePicture is a required part of this DTO if it's not null
+            profile.setProfilePicture(files.profilePic().getBytes());
+            profile.setBasicDetails(employee);
+            employee.setProfileInfoDetails(profile);
         }
 
-        if (dto.getDynamicFieldValue() != null) {
-            for (DynamicFieldValue field : dto.getDynamicFieldValue()) {
-                dynamicRepo.save(field);
+        // --- One-to-Many Relationships ---
+
+        // Education Details (List)
+        if (dto.getEducationDetails() != null && !dto.getEducationDetails().isEmpty()) {
+            employee.getEducationDetails().clear(); // Clear old list to handle updates correctly
+            for (EducationDetails edu : dto.getEducationDetails()) {
+                edu.setDegreeCertificate(files.degreeCertificate().getBytes());
+                edu.setMarksheets(files.marksheets().getBytes());
+                if (files.uploadedCertifications() != null) {
+                    edu.setUploadedCertifications(files.uploadedCertifications().getBytes());
+                }
+                edu.setBasicDetails(employee); // Link each item in the list
+                employee.getEducationDetails().add(edu);
             }
         }
+
+        // Work Experience (List)
+        if(dto.getWorkExperiences() != null && !dto.getWorkExperiences().isEmpty()){
+            employee.getWorkExperiences().clear();
+            for(WorkExperience work : dto.getWorkExperiences()){
+                work.setRelievingLetter(files.relievingLetter().getBytes());
+                work.setExperienceLetter(files.experienceLetter().getBytes());
+                work.setPayslips(files.payslips().getBytes());
+                work.setBasicDetails(employee);
+                employee.getWorkExperiences().add(work);
+            }
+        }
+
+        // Dynamic Field Values (List)
+        if (dto.getDynamicFieldValues() != null && !dto.getDynamicFieldValues().isEmpty()) {
+            employee.getDynamicFieldValues().clear();
+            for (DynamicFieldValue dfv : dto.getDynamicFieldValues()) {
+                // Here, we assume the DTO contains the definition ID and the value.
+                // The service needs to fetch the actual definition if the DTO only has the ID.
+                // For simplicity here, we assume the DTO has the full object, which is less ideal.
+                dfv.setBasicDetails(employee);
+                employee.getDynamicFieldValues().add(dfv);
+            }
+        }
+
+        // 4. Update the overall status of the process
+        employee.setOnboardingStatus(OnboardingStatus.PENDING_MANAGER_REVIEW);
+
+        // 5. ONE SAVE CALL. This single line saves the updated parent AND
+        //    inserts all the new children thanks to the cascade settings.
+        basicRepo.save(employee);
     }
 
     @Transactional
-    public void saveManagerDetails(ManagerDetailsDto dto,MultipartFile offerLetter,
-                                   MultipartFile signedNda,
-                                   MultipartFile joiningKit,
-                                   MultipartFile salaryStructurePdf,
-                                   Long empId) {
-        SalaryStructureDetails dtoSalary = dto.getSalaryStructureDetails();
-        SalaryStructureDetails salary = new SalaryStructureDetails();
-        salary.setBaseSalary(dtoSalary.getBaseSalary());
-        salary.setHra(dtoSalary.getHra());
-        salary.setAllowances(dtoSalary.getAllowances());
-        salary.setBonus(dtoSalary.getBonus());
-        salary.setDeductions(dtoSalary.getDeductions());
-        salary.setEffectiveDate(dtoSalary.getEffectiveDate());
-        salary.setSalaryStructurePdf(dtoSalary.getSalaryStructurePdf());
-        salary.setCtc(salary.getBaseSalary() + salary.getHra() + salary.getAllowances()
-                + (salary.getBonus() != null ? salary.getBonus() : 0.0)
-                - (salary.getDeductions() != null ? salary.getDeductions() : 0.0));
-        salaryRepo.save(salary);
+    public void saveManagerDetails(ManagerDetailsDto dto, Long empId, ManagerFilesDto files) throws IOException {
+        BasicDetails employee = basicRepo.findById(empId)
+                .orElseThrow(() -> new EntityNotFoundException("Employee not found with ID: " + empId));
 
-        OnboardingInfoDetails dtoOnboarding = dto.getOnboardingInfoDetails();
-        OnboardingInfoDetails onboarding = new OnboardingInfoDetails();
-        onboarding.setDateOfJoining(dtoOnboarding.getDateOfJoining());
-        onboarding.setDesignation(dtoOnboarding.getDesignation());
-        onboarding.setDepartment(dtoOnboarding.getDepartment());
-        onboarding.setReportingManager(dtoOnboarding.getReportingManager());
-        onboarding.setOfferLetter(dtoOnboarding.getOfferLetter());
-        onboarding.setSignedNda(dtoOnboarding.getSignedNda());
-        onboarding.setJoiningKit(dtoOnboarding.getJoiningKit());
-        onboardingRepo.save(onboarding);
+        // Create and link Salary Details
+        if (dto.getSalaryStructureDetails() != null) {
+            SalaryStructureDetails salary = dto.getSalaryStructureDetails();
+            salary.setSalaryStructurePdf(files.salaryStructurePdf().getBytes());
+            salary.setBasicDetails(employee);
+            employee.setSalaryStructureDetails(salary);
+        }
 
-        if (dto.getDynamicFields() != null) {
-            for (DynamicFieldValue field : dto.getDynamicFields()) {
-                dynamicRepo.save(field);
+        // Create and link Onboarding Info
+        if (dto.getOnboardingInfoDetails() != null) {
+            OnboardingInfoDetails onboardingInfo = dto.getOnboardingInfoDetails();
+            onboardingInfo.setOfferLetter(files.offerLetter().getBytes());
+            onboardingInfo.setSignedNda(files.signedNda().getBytes());
+            if (files.joiningKit() != null) {
+                onboardingInfo.setJoiningKit(files.joiningKit().getBytes());
+            }
+            onboardingInfo.setBasicDetails(employee);
+            employee.setOnboardingInfoDetails(onboardingInfo);
+        }
+
+        // Handle Manager-added Dynamic Fields
+        if (dto.getDynamicFields() != null && !dto.getDynamicFields().isEmpty()) {
+            // We assume manager fields are added to the same list.
+            // A more complex design might have separate lists.
+            for (DynamicFieldValue dfv : dto.getDynamicFields()) {
+                dfv.setBasicDetails(employee);
+                employee.getDynamicFieldValues().add(dfv);
             }
         }
+
+
+        employee.setOnboardingStatus(OnboardingStatus.COMPLETED);
+
+        basicRepo.save(employee);
     }
 }

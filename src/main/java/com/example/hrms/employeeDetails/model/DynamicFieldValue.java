@@ -1,28 +1,35 @@
 package com.example.hrms.employeeDetails.model;
 
 import com.example.hrms.employeeDetails.enums.ApplicationStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Entity
+@Table(name = "dynamic_field_values")
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class DynamicFieldValue {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    // The single, correct mapping to the "Question"
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "field_definition_id", nullable = false)
     private DynamicFieldDefinition fieldDefinition;
 
-    private Long employeeId;
+    // The single, correct mapping to the "Employee"
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "basic_details_id", nullable = false)
+    @JsonIgnore
+    private BasicDetails basicDetails;
 
     @Lob
-    private String value;  // e.g. "Java,React", or a single LinkedIn URL, etc.
+    private String value;  // The employee's answer to the question
+
     @Enumerated(EnumType.STRING)
     private ApplicationStatus applicationStatus;
+
+    // Note: The redundant 'employeeId' and duplicate 'fieldDefinition' fields have been removed.
 }

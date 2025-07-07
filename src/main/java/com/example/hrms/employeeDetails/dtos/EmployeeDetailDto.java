@@ -14,7 +14,7 @@ public class EmployeeDetailDto {
     private IdentificationDetails identificationDetails;
     private FamilyInfoDetails familyInfo;
     private BankDetails bankDetails;
-    private List<DynamicFieldValue> dynamicFieldValue;
+    private List<DynamicFieldValue> dynamicFieldValues;
     private ProfileInfoDetails profileInfo;
 
 }

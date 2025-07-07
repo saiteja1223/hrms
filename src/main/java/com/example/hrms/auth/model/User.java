@@ -1,6 +1,7 @@
 package com.example.hrms.auth.model;
 
 import com.example.hrms.auth.enums.Role;
+import com.example.hrms.employeeDetails.model.BasicDetails;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -28,30 +29,8 @@ public class User {
 
         private Boolean isActive = true;
 
-        public Long getId() {
-                return id;
-        }
-
-        public String getEmail() {
-                return email;
-        }
-
-        public String getPassword() {
-                return password;
-        }
-
-        public Role getRole() {
-                return role;
-        }
-
-        public Long getOrgId() {
-                return orgId;
-        }
-
-        public Boolean getIsActive() {
-                return isActive;
-        }
-
+        @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+        private BasicDetails basicDetails;
 
 }
 

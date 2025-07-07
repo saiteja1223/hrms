@@ -1,5 +1,6 @@
 package com.example.hrms.employeeDetails.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -26,4 +27,7 @@ public class DynamicFieldDefinition {
     private String createdByRole;     // "ORG_ADMIN", "MANAGER", etc.
 
     private Long organizationId;      // Org-specific fields
+
+
 }
+

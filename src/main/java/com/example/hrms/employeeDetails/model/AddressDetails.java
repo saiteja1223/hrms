@@ -1,6 +1,7 @@
 package com.example.hrms.employeeDetails.model;
 
 import com.example.hrms.employeeDetails.common.Address;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -27,5 +28,11 @@ public class AddressDetails {
             @AttributeOverride(name = "country", column = @Column(name = "perm_country"))
     })
     private Address permanentAddress;
+
+    // The crucial link back to the parent
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "basic_details_id", nullable = false)
+    @JsonIgnore
+    private BasicDetails basicDetails;
 
 }
