@@ -1,10 +1,14 @@
 package com.example.hrms.employeeDetails.model;
 
+import com.example.hrms.auth.enums.Role;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Data
@@ -24,7 +28,7 @@ public class DynamicFieldDefinition {
 
     private String options;           // comma-separated for dropdowns (e.g., "Java,React,Python")
 
-    private String createdByRole;     // "ORG_ADMIN", "MANAGER", etc.
+    private Role createdByRole;     // "ORG_ADMIN", "MANAGER", etc.
 
     private Long organizationId;      // Org-specific fields
 

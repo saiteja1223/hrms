@@ -33,15 +33,16 @@ public class OnboardingInfoDetails {
 
     // Required document uploads
     @Lob
-    @Column(nullable = false)
+    @Column(columnDefinition = "MEDIUMBLOB",nullable = false)
     private byte[] offerLetter;
 
     @Lob
-    @Column(nullable = false)
+    @Column(columnDefinition = "MEDIUMBLOB",nullable = false)
     private byte[] signedNda;
 
     // Optional document
     @Lob
+    @Column(columnDefinition = "MEDIUMBLOB")
     private byte[] joiningKit;
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "basic_details_id", nullable = false)

@@ -23,6 +23,7 @@ public class EmployeeLifecycleService {
     public BasicDetails initiateOnboarding(InitiateOnboardingDto dto) {
         // Find the User. NOTE: In a real system, the manager would create the user first
         // via your AuthService. This code assumes the User already exists.
+
         User user = userRepository.findByEmail(dto.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("User with email " + dto.getEmail() + " does not exist. Please register the user first."));
 

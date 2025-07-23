@@ -38,7 +38,7 @@ public class SalaryStructureDetails {
     private LocalDate effectiveDate;
 
     @Lob
-    @Column(nullable = false)
+    @Column(columnDefinition = "MEDIUMBLOB",nullable = false)
     private byte[] salaryStructurePdf;
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "basic_details_id", nullable = false)

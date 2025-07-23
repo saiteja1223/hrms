@@ -14,6 +14,9 @@ public class DynamicFieldValue {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Transient // For linking files during the API call. Not saved to DB.
+    private String finalKey;
+
     // The single, correct mapping to the "Question"
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "field_definition_id", nullable = false)
@@ -30,6 +33,10 @@ public class DynamicFieldValue {
 
     @Enumerated(EnumType.STRING)
     private ApplicationStatus applicationStatus;
+
+    // This is the new relationship to the file data. It will be null for text fields.
+    @OneToOne(mappedBy = "dynamicFieldValue", cascade = CascadeType.ALL, orphanRemoval = true)
+    private DynamicFieldFile file;
 
     // Note: The redundant 'employeeId' and duplicate 'fieldDefinition' fields have been removed.
 }

@@ -34,7 +34,9 @@ public class BankDetails {
     private String pfNumber;   // Optional
     private String esiNumber;  // Optional
 
-    @Column(nullable = false)
+    @Column(columnDefinition = "MEDIUMBLOB",nullable = false)
+    @Lob
+
     private byte[] cancelledCheque;  // File path to the uploaded cancelled cheque
     @Enumerated(EnumType.STRING)
     private ApplicationStatus applicationStatus;

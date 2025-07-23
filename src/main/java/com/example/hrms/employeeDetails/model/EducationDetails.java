@@ -19,6 +19,8 @@ public class EducationDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Transient
+    private String finalKey;
 
     @Column(nullable = false)
     private String highestQualification;
@@ -37,15 +39,16 @@ public class EducationDetails {
 
     // Required file uploads
     @Lob
-    @Column(nullable = false)
+    @Column(columnDefinition = "MEDIUMBLOB",nullable = false)
     private byte[] degreeCertificate;
 
     @Lob
-    @Column(nullable = false)
+    @Column(columnDefinition = "MEDIUMBLOB",nullable = false)
     private byte[] marksheets;
 
     // Optional file upload
     @Lob
+    @Column(columnDefinition = "MEDIUMBLOB")
     private byte[] uploadedCertifications;
     @Enumerated(EnumType.STRING)
     private ApplicationStatus applicationStatus;

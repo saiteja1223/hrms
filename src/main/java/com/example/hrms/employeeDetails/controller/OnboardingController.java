@@ -1,63 +1,62 @@
 package com.example.hrms.employeeDetails.controller;
 
-import com.example.hrms.employeeDetails.dtos.*;
-import com.example.hrms.employeeDetails.service.EmployeeLifecycleService;
+import com.example.hrms.employeeDetails.dtos.EmployeeDetailDto;
+import com.example.hrms.employeeDetails.dtos.ManagerDetailsDto;
+import com.example.hrms.employeeDetails.dtos.ManagerFilesDto;
 import com.example.hrms.employeeDetails.service.EmployeeOnboardingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest; // <-- Important import
 
 import java.io.IOException;
 import java.security.Principal;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/profile")
+@RequiredArgsConstructor
 public class OnboardingController {
 
-    @Autowired
-    private EmployeeOnboardingService employeeService;
+    private final EmployeeOnboardingService employeeService;
 
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    // We need ObjectMapper again because we are manually parsing the DTO from a string
+    private final ObjectMapper objectMapper;
 
-
-
-    // This should be a PUT or PATCH since it's updating an existing record
+    // This is the updated and correct method for handling dynamic files
     @PutMapping(value = "/detailsByEmployee", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<String> submitEmployeeDetails(
-            // BEST PRACTICE: Use @RequestPart for both DTO and files
-            @RequestPart("dto") EmployeeDetailDto dto,
-            @RequestPart("degreeCertificate") MultipartFile degreeCertificate,
-            @RequestPart("marksheets") MultipartFile marksheets,
-            @RequestPart(value = "uploadedCertifications", required = false) MultipartFile uploadedCertifications,
-            @RequestPart("relievingLetter") MultipartFile relievingLetter,
-            @RequestPart("experienceLetter") MultipartFile experienceLetter,
-            @RequestPart("payslips") MultipartFile payslips,
-            @RequestPart("aadhaarFile") MultipartFile aadhaarFile,
-            @RequestPart("panFile") MultipartFile panFile,
-            @RequestPart(value = "passportFile", required = false) MultipartFile passportFile,
-            @RequestPart(value = "dependentsInfoFile", required = false) MultipartFile dependentsInfoFile,
-            @RequestPart("cancelledChequeFile") MultipartFile cancelledChequeFile,
-            @RequestPart("profilePic") MultipartFile profilePic,
+            MultipartHttpServletRequest request, // <-- 1. Accept the whole multipart request
             Principal principal
     ) throws IOException {
+         System.out.println("request"+request);
+        // 2. Manually get the JSON string part from the request
+        String dtoJson = request.getParameter("dto");
+        if (dtoJson == null) {
+            return ResponseEntity.badRequest().body("Missing required 'dto' part in the form-data request.");
+        }
 
-        // Bundle files into a clean DTO
-        var files = new EmployeeFilesDto(
-                degreeCertificate, marksheets, uploadedCertifications, relievingLetter,
-                experienceLetter, payslips, aadhaarFile, panFile, passportFile,
-                dependentsInfoFile, cancelledChequeFile,profilePic
-        );
+        // 3. Manually parse the JSON string into your DTO object
+        EmployeeDetailDto dto = objectMapper.readValue(dtoJson, EmployeeDetailDto.class);
 
+        // 4. Get a Map of ALL uploaded files. The keys will be the unique names you send
+        // from Postman (e.g., "education_0_degree", "profilePic", etc.)
+        Map<String, MultipartFile> files = request.getFileMap();
+
+        // 5. Pass the DTO and the complete file map to the service layer
         employeeService.saveEmployeeDetails(dto, principal.getName(), files);
+
         return ResponseEntity.ok("Your details have been submitted successfully for review.");
     }
+
+    // ... your submitManagerDetails method can remain as it is if it doesn't have dynamic files ...
 
 
     // This adds new data to an existing record

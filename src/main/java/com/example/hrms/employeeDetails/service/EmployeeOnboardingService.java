@@ -1,7 +1,6 @@
 package com.example.hrms.employeeDetails.service;
 
 import com.example.hrms.employeeDetails.dtos.EmployeeDetailDto;
-import com.example.hrms.employeeDetails.dtos.EmployeeFilesDto;
 import com.example.hrms.employeeDetails.dtos.ManagerDetailsDto;
 import com.example.hrms.employeeDetails.dtos.ManagerFilesDto;
 import com.example.hrms.employeeDetails.enums.OnboardingStatus;
@@ -11,23 +10,24 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Map;
 
 @Service
-@RequiredArgsConstructor // Use modern constructor injection
+@RequiredArgsConstructor
 public class EmployeeOnboardingService {
 
-    // With cascading, we ONLY need the repository for the ROOT entity.
     private final BasicDetailsRepository basicRepo;
 
     @Transactional
-    public void saveEmployeeDetails(EmployeeDetailDto dto, String userEmail, EmployeeFilesDto files) throws IOException {
+    public void saveEmployeeDetails(EmployeeDetailDto dto, String userEmail, Map<String, MultipartFile> files) throws IOException {
         // 1. Find the EXISTING parent record created by the manager.
         BasicDetails employee = basicRepo.findByUser_Email(userEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Onboarding not initiated for user: " + userEmail));
 
-        // 2. Update the primitive fields on the main employee object
+        // 2. Update the primitive fields on the main employee object from the DTO.
         BasicDetails dtoBasic = dto.getBasicDetails();
         employee.setMobileNumber(dtoBasic.getMobileNumber());
         employee.setPersonalEmail(dtoBasic.getPersonalEmail());
@@ -38,93 +38,151 @@ public class EmployeeOnboardingService {
         employee.setNationality(dtoBasic.getNationality());
         employee.setBloodGroup(dtoBasic.getBloodGroup());
 
-        // 3. Create NEW child objects, link them to the parent, and set them on the parent.
-        // This is what tells JPA to run INSERT statements for the children.
+        // 3. Create/Update child entities, link them to the parent, and set them on the parent.
 
         // --- One-to-One Relationships ---
 
-        // Address Details
+        // Address Details (no files)
         if (dto.getAddressDetails() != null) {
             AddressDetails address = dto.getAddressDetails();
-            address.setBasicDetails(employee); // Link child to parent
-            employee.setAddressDetails(address); // Link parent to child
+            address.setBasicDetails(employee);
+            employee.setAddressDetails(address);
         }
 
-        // Bank Details
+        // Bank Details (has one static file)
         if (dto.getBankDetails() != null) {
             BankDetails bank = dto.getBankDetails();
-            bank.setCancelledCheque(files.cancelledChequeFile().getBytes());
+            MultipartFile chequeFile = files.get("cancelledChequeFile");
+            if (chequeFile != null && !chequeFile.isEmpty()) {
+                bank.setCancelledCheque(chequeFile.getBytes());
+            }
             bank.setBasicDetails(employee);
             employee.setBankDetails(bank);
         }
 
-        // Identification Details
+        // Identification Details (has multiple static files)
         if (dto.getIdentificationDetails() != null) {
             IdentificationDetails id = dto.getIdentificationDetails();
-            id.setAadhaarFile(files.aadhaarFile().getBytes());
-            id.setPanFile(files.panFile().getBytes());
-            if (files.passportFile() != null) {
-                id.setPassportFile(files.passportFile().getBytes());
-            }
+            MultipartFile aadhaarFile = files.get("aadhaarFile");
+            MultipartFile panFile = files.get("panFile");
+            MultipartFile passportFile = files.get("passportFile"); // Optional
+
+            if (aadhaarFile != null && !aadhaarFile.isEmpty()) id.setAadhaarFile(aadhaarFile.getBytes());
+            if (panFile != null && !panFile.isEmpty()) id.setPanFile(panFile.getBytes());
+            if (passportFile != null && !passportFile.isEmpty()) id.setPassportFile(passportFile.getBytes());
+
             id.setBasicDetails(employee);
             employee.setIdentificationDetails(id);
         }
 
-        // Family Info Details
+        // Family Info Details (has one optional static file)
         if (dto.getFamilyInfo() != null) {
             FamilyInfoDetails family = dto.getFamilyInfo();
-            if (files.dependentsInfoFile() != null) {
-                family.setDependentsInfoFile(files.dependentsInfoFile().getBytes());
+            MultipartFile dependentsFile = files.get("dependentsInfoFile");
+            if (dependentsFile != null && !dependentsFile.isEmpty()) {
+                family.setDependentsInfoFile(dependentsFile.getBytes());
             }
             family.setBasicDetails(employee);
             employee.setFamilyInfoDetails(family);
         }
 
-        // Profile Info Details
+        // Profile Info Details (has one static file)
         if (dto.getProfileInfo() != null) {
             ProfileInfoDetails profile = dto.getProfileInfo();
-            // Assuming profilePicture is a required part of this DTO if it's not null
-            profile.setProfilePicture(files.profilePic().getBytes());
+            MultipartFile profilePic = files.get("profilePic");
+            if(profilePic != null && !profilePic.isEmpty()) {
+                profile.setProfilePicture(profilePic.getBytes());
+            }
             profile.setBasicDetails(employee);
             employee.setProfileInfoDetails(profile);
         }
 
         // --- One-to-Many Relationships ---
 
-        // Education Details (List)
+        // Education Details (List with dynamic files)
         if (dto.getEducationDetails() != null && !dto.getEducationDetails().isEmpty()) {
-            employee.getEducationDetails().clear(); // Clear old list to handle updates correctly
+            employee.getEducationDetails().clear();
             for (EducationDetails edu : dto.getEducationDetails()) {
-                edu.setDegreeCertificate(files.degreeCertificate().getBytes());
-                edu.setMarksheets(files.marksheets().getBytes());
-                if (files.uploadedCertifications() != null) {
-                    edu.setUploadedCertifications(files.uploadedCertifications().getBytes());
-                }
-                edu.setBasicDetails(employee); // Link each item in the list
+                String keyPrefix = edu.getFinalKey();
+                if (keyPrefix == null || keyPrefix.isBlank()) continue;
+
+                MultipartFile degreeFile = files.get(keyPrefix + "_degree");
+                MultipartFile marksheetFile = files.get(keyPrefix + "_marks");
+                MultipartFile certsFile = files.get(keyPrefix + "_certs");
+
+                if (degreeFile != null) edu.setDegreeCertificate(degreeFile.getBytes());
+                if (marksheetFile != null) edu.setMarksheets(marksheetFile.getBytes());
+                if (certsFile != null) edu.setUploadedCertifications(certsFile.getBytes());
+
+                edu.setBasicDetails(employee);
                 employee.getEducationDetails().add(edu);
             }
         }
 
-        // Work Experience (List)
+        // Work Experience (List with dynamic files)
         if(dto.getWorkExperiences() != null && !dto.getWorkExperiences().isEmpty()){
             employee.getWorkExperiences().clear();
             for(WorkExperience work : dto.getWorkExperiences()){
-                work.setRelievingLetter(files.relievingLetter().getBytes());
-                work.setExperienceLetter(files.experienceLetter().getBytes());
-                work.setPayslips(files.payslips().getBytes());
+                String keyPrefix = work.getFinalKey(); // Requires adding @Transient finalKey to WorkExperience model
+                if (keyPrefix == null || keyPrefix.isBlank()) continue;
+
+                MultipartFile relievingFile = files.get(keyPrefix + "_relieving");
+                MultipartFile experienceFile = files.get(keyPrefix + "_experience");
+                MultipartFile payslipsFile = files.get(keyPrefix + "_payslips");
+
+                if (relievingFile != null) work.setRelievingLetter(relievingFile.getBytes());
+                if (experienceFile != null) work.setExperienceLetter(experienceFile.getBytes());
+                if (payslipsFile != null) work.setPayslips(payslipsFile.getBytes());
+
                 work.setBasicDetails(employee);
                 employee.getWorkExperiences().add(work);
             }
         }
 
-        // Dynamic Field Values (List)
+        // Dynamic Field Values (List, no files)
         if (dto.getDynamicFieldValues() != null && !dto.getDynamicFieldValues().isEmpty()) {
             employee.getDynamicFieldValues().clear();
+
             for (DynamicFieldValue dfv : dto.getDynamicFieldValues()) {
-                // Here, we assume the DTO contains the definition ID and the value.
-                // The service needs to fetch the actual definition if the DTO only has the ID.
-                // For simplicity here, we assume the DTO has the full object, which is less ideal.
+                // Link the "answer" to the employee first
                 dfv.setBasicDetails(employee);
+
+                // This assumes the DTO provides enough information to know the field's type.
+                DynamicFieldDefinition definition = dfv.getFieldDefinition();
+
+                // Check if this dynamic field is defined as a 'file' type.
+                if (definition != null && "file".equalsIgnoreCase(definition.getFieldType())) {
+
+                    // A. This is a FILE field.
+                    String keyPrefix = dfv.getFinalKey();
+                    if (keyPrefix != null && !keyPrefix.isBlank()) {
+
+                        // Construct the unique file key (e.g., "dyn_0_file")
+                        String fileKey = keyPrefix + "_file";
+                        MultipartFile file = files.get(fileKey);
+
+                        if (file != null && !file.isEmpty()) {
+                            // 1. The 'value' field stores the original filename as a text reference.
+                            dfv.setValue(file.getOriginalFilename());
+
+                            // 2. Create the separate DynamicFieldFile entity to hold the actual file bytes.
+                            DynamicFieldFile dynamicFile = new DynamicFieldFile();
+                            dynamicFile.setData(file.getBytes());
+                            dynamicFile.setOriginalFilename(file.getOriginalFilename());
+                            dynamicFile.setContentType(file.getContentType());
+
+                            // 3. Create the crucial bidirectional link between the answer and its file.
+                            dynamicFile.setDynamicFieldValue(dfv);
+                            dfv.setFile(dynamicFile);
+
+                            // NOTE: We don't need to save `dynamicFile` separately because
+                            // the CascadeType.ALL on the 'file' relationship in DynamicFieldValue will handle it.
+                        }
+                    }
+                }
+                // B. This is a TEXT field. The 'value' is already set correctly from the JSON.
+                // No extra logic is needed.
+
                 employee.getDynamicFieldValues().add(dfv);
             }
         }
@@ -132,8 +190,7 @@ public class EmployeeOnboardingService {
         // 4. Update the overall status of the process
         employee.setOnboardingStatus(OnboardingStatus.PENDING_MANAGER_REVIEW);
 
-        // 5. ONE SAVE CALL. This single line saves the updated parent AND
-        //    inserts all the new children thanks to the cascade settings.
+        // 5. ONE SAVE CALL to persist all changes and new child entities.
         basicRepo.save(employee);
     }
 
@@ -164,8 +221,6 @@ public class EmployeeOnboardingService {
 
         // Handle Manager-added Dynamic Fields
         if (dto.getDynamicFields() != null && !dto.getDynamicFields().isEmpty()) {
-            // We assume manager fields are added to the same list.
-            // A more complex design might have separate lists.
             for (DynamicFieldValue dfv : dto.getDynamicFields()) {
                 dfv.setBasicDetails(employee);
                 employee.getDynamicFieldValues().add(dfv);
@@ -173,8 +228,8 @@ public class EmployeeOnboardingService {
         }
 
 
-        employee.setOnboardingStatus(OnboardingStatus.COMPLETED);
 
+        employee.setOnboardingStatus(OnboardingStatus.COMPLETED);
         basicRepo.save(employee);
     }
 }

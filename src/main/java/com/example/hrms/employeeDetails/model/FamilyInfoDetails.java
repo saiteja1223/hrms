@@ -33,6 +33,7 @@ public class FamilyInfoDetails {
     private Long emergencyContactNumber;
 
     @Lob
+    @Column(columnDefinition = "MEDIUMBLOB")
     private byte[] dependentsInfoFile; // Optional: e.g. PDF of dependent list
     @Enumerated(EnumType.STRING)
     private ApplicationStatus applicationStatus;

@@ -13,11 +13,14 @@ import java.time.LocalDate;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(name="employee_workExp")
 public class WorkExperience {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Transient
+    private String finalKey;
 
     @Column(nullable = false)
     private String companyName;
@@ -34,15 +37,15 @@ public class WorkExperience {
     private String reasonForLeaving;  // Optional
 
     @Lob
-    @Column(nullable = false)
+    @Column(columnDefinition = "MEDIUMBLOB",nullable = false)
     private byte[] relievingLetter;
 
     @Lob
-    @Column(nullable = false)
+    @Column(columnDefinition = "MEDIUMBLOB",nullable = false)
     private byte[] experienceLetter;
 
     @Lob
-    @Column(nullable = false)
+    @Column(columnDefinition = "MEDIUMBLOB",nullable = false)
     private byte[] payslips;  // You can also store a zip or PDF of all 3 months
     @Enumerated(EnumType.STRING)
     private ApplicationStatus applicationStatus;

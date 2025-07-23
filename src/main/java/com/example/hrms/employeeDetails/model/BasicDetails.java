@@ -20,7 +20,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "employee-basic_details")
+@Table(name = "employee_basic_details")
 public class BasicDetails {
     @Id
     @GeneratedValue (strategy = GenerationType.IDENTITY)

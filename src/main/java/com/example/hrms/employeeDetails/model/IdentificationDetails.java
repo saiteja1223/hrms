@@ -29,14 +29,15 @@ public class IdentificationDetails {
 
 
     @Lob
-    @Column(nullable = false)
+    @Column(columnDefinition = "MEDIUMBLOB",nullable = false)
     private byte[] aadhaarFile;
 
     @Lob
-    @Column(nullable = false)
+    @Column(columnDefinition = "MEDIUMBLOB",nullable = false)
     private byte[] panFile;
 
     @Lob
+    @Column(columnDefinition = "MEDIUMBLOB")
     private byte[] passportFile;
     @Enumerated(EnumType.STRING)
     private ApplicationStatus applicationStatus;

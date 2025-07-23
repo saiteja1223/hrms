@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(name="employee_profile")
 public class ProfileInfoDetails {
 
     @Id
@@ -18,7 +19,7 @@ public class ProfileInfoDetails {
     private Long id;
 
     @Lob
-    @Column(nullable = false)
+    @Column(columnDefinition = "MEDIUMBLOB")
     private byte[] profilePicture;  // Required
 
     @Column(columnDefinition = "TEXT")
