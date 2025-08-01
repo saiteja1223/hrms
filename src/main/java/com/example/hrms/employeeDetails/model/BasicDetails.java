@@ -1,25 +1,24 @@
 package com.example.hrms.employeeDetails.model;
 
+import com.example.hrms.attendance.model.WorkingHoursPolicy;
 import com.example.hrms.auth.model.User;
 import com.example.hrms.employeeDetails.enums.BloodGroup;
 import com.example.hrms.employeeDetails.enums.Gender;
 import com.example.hrms.employeeDetails.enums.MaritalStatus;
 import com.example.hrms.employeeDetails.enums.OnboardingStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 @Entity
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(exclude = {"manager", "directReports"}) // To prevent errors
+@ToString(exclude = {"manager", "directReports"})      // To prevent errors
 @Table(name = "employee_basic_details")
 public class BasicDetails {
     @Id
@@ -77,6 +76,17 @@ public class BasicDetails {
 
     @OneToMany(mappedBy = "basicDetails", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<DynamicFieldValue>dynamicFieldValues=new ArrayList<>();
+    // Add this new relationship for employee-specific policy assignments
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_policy_id")
+    private WorkingHoursPolicy assignedWorkingHoursPolicy;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manager_id")
+    @JsonIgnore
+    private BasicDetails manager;
+
+    @OneToMany(mappedBy = "manager", fetch = FetchType.LAZY)
+    private Set<BasicDetails> directReports = new HashSet<>();
 
 
 }

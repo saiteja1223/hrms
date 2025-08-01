@@ -1,5 +1,6 @@
 package com.example.hrms.employeeDetails.model;
 
+import com.example.hrms.attendance.model.Department;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -25,8 +26,8 @@ public class OnboardingInfoDetails {
     @Column(nullable = false)
     private String designation;
 
-    @Column(nullable = false)
-    private String department;
+   @Column(nullable = false)
+   private String empdepartment;
 
     @Column(nullable = false)
     private String reportingManager; // Can be linked to Employee later as @ManyToOne
@@ -48,5 +49,9 @@ public class OnboardingInfoDetails {
     @JoinColumn(name = "basic_details_id", nullable = false)
     @JsonIgnore
     private BasicDetails basicDetails;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
+    private Department department;
 }
 
